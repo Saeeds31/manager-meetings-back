@@ -35,13 +35,11 @@ class AuthController extends Controller
         $otp = Otp::where('mobile', $request->mobile)->first();
         if ($user) {
             return response()->json([
-                'token' => $otp->token,
                 'status' => 'login',
                 "success" => true
             ]);
         } else {
             return response()->json([
-                'token' => $otp->token,
                 'status' => 'register',
                 "success" => true
             ]);
@@ -69,13 +67,27 @@ class AuthController extends Controller
     public  function sendOtpAgain(Request $request)
     {
         $request->validate(['mobile' => 'required|digits:11']);
-        $this->sendOtp($request->mobile);
-        $otp = Otp::where('mobile', $request->mobile)->first();
-        return response()->json([
-            'message' => 'OTP sent',
-            'success' => true,
-            'token' => $otp->token
-        ]);
+        $user = User::where("mobile", $request->mobile)->first();
+        if ($user) {
+            if ($user->status == 'in_progress') {
+                $this->sendOtp($request->mobile);
+                $otp = Otp::where('mobile', $request->mobile)->first();
+                return response()->json([
+                    'message' => 'OTP sent',
+                    'success' => true,
+                ]);
+            } else {
+                return response()->json([
+                    'message' => 'اطلاعات از قبل ثبت کامل شده است',
+                    'success' => true,
+                ], 422);
+            }
+        } else {
+            return response()->json([
+                'message' => 'اطلاعات کاربر موجود نیست',
+                'success' => true,
+            ], 404);
+        }
     }
     // 4) بررسی OTP
     public function verifyOtp(Request $request)
@@ -131,10 +143,10 @@ class AuthController extends Controller
             'mobile'   => 'required|digits:11',
         ]);
         $user = User::where('mobile', $data['mobile'])->first();
-        if ($user->roles()->where('name', 'user')->exists()) {
-            return response()->json(['message' => 'شما اجازه دسترسی به این بخش را ندارید'], 401);
-        }
         if ($user) {
+            if ($user->roles()->where('name', 'user')->exists()) {
+                return response()->json(['message' => 'شما اجازه دسترسی به این بخش را ندارید'], 401);
+            }
             $this->sendOtp($request->mobile);
             return response()->json([
                 'message' => "کد یکبار مصرف ارسال شد",
@@ -190,6 +202,24 @@ class AuthController extends Controller
             ], 404);
         }
     }
+    public function adminInfo(Request $request)
+    {
+        $user = $request->user();
+        return response()->json([
+            'user' => $user,
+        ]);
+    }
+    public function adminPermissions(Request $request)
+    {
+        $user = $request->user();
+        $permissions = $user->roles->flatMap(function ($role) {
+            return $role->permissions->pluck('name');
+        })->unique()->values();
+        return response()->json([
+            'roles' => $user->roles->pluck('name'),
+            'permissions' => $permissions,
+        ]);
+    }
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -207,6 +237,7 @@ class AuthController extends Controller
             'national_code' => 'required|string|size:10',
             'birth_date' => 'required|date',
             'birth_certificate_number' => 'required|string|max:20',
+            'postal_code' => 'required|string|size:10',
             'marital_status' => 'required|in:1,0',
             'place_of_residence' => 'required|string|max:255',
             'father_name' => 'required|string|max:50',

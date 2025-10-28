@@ -38,6 +38,7 @@ class User extends Authenticatable
         'back_national_cart',
         'birth_certificate_image',
         'image',
+        'postal_code',
         'status'
     ];
 
