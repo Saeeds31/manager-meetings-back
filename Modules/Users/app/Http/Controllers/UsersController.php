@@ -28,7 +28,7 @@ class UsersController extends Controller
 
         if (in_array('inspector', $adminRoles)) {
             // اگر نقش بازرس دارد → فقط کاربران در حال بررسی
-            $query->where('status', 'in_progress');
+            $query->where('status', 'pending');
         } else {
             // سایر نقش‌ها → فقط کاربران پذیرفته یا رد شده
             $query->whereIn('status', ['accepted', 'rejected']);
